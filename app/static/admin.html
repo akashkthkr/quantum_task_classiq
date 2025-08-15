@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin – Tasks</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; }
+    input, button { padding: 0.5rem 0.7rem; font-size: 1rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ddd; padding: 0.5rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    th { text-align: left; background: #f6f8fa; }
+    .row { margin: 0.8rem 0; }
+    .muted { color: #666; }
+    .ok { color: #1a7f37; }
+    .err { color: #b3261e; }
+  </style>
+  <script>
+    async function fetchTasks(password) {
+      const res = await fetch('/admin/tasks?password=' + encodeURIComponent(password));
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const msg = data.detail || 'Unauthorized';
+        throw new Error(msg);
+      }
+      return res.json();
+    }
+
+    function render(tasks) {
+      const tbody = document.querySelector('tbody');
+      tbody.innerHTML = '';
+      for (const t of tasks) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${t.id}</td>
+          <td>${t.status}</td>
+          <td>${t.submitted_at || ''}</td>
+          <td>${t.updated_at || ''}</td>
+          <td>${t.has_result ? '<span class="ok">yes</span>' : '<span class="muted">no</span>'}</td>
+          <td>${t.error_msg ? '<span class="err">' + t.error_msg + '</span>' : ''}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function onLoad() {
+      const form = document.getElementById('login');
+      const status = document.getElementById('status');
+      const pw = document.getElementById('pw');
+      const table = document.getElementById('table');
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        status.textContent = 'loading...';
+        try {
+          const data = await fetchTasks(pw.value);
+          status.textContent = '';
+          form.style.display = 'none';
+          table.style.display = '';
+          render(data.tasks || []);
+        } catch (err) {
+          status.textContent = 'error: ' + err.message;
+        }
+      });
+    }
+    window.addEventListener('DOMContentLoaded', onLoad);
+  </script>
+</head>
+<body>
+  <h1>Admin – Submitted Tasks</h1>
+  <div class="row"><a href="/ui">Back to UI</a></div>
+  <form id="login" class="row">
+    <label for="pw">Password:</label>
+    <input id="pw" type="password" placeholder="enter password" />
+    <button type="submit">View tasks</button>
+    <span id="status" class="muted"></span>
+  </form>
+
+  <div id="table" style="display:none">
+    <table>
+      <thead>
+        <tr>
+          <th>Task ID</th>
+          <th>Status</th>
+          <th>Submitted</th>
+          <th>Updated</th>
+          <th>Has Result</th>
+          <th>Error</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</body>
+</html>
+
+
