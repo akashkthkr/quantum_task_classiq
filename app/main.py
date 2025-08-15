@@ -66,7 +66,7 @@ def get_task(task_id: str):
 
 		if task.status in (TaskStatus.PENDING, TaskStatus.RUNNING):
 			logger.info("task_pending", extra={"task_id": task_id, "status": task.status})
-			return JSONResponse(status_code=200, content=TaskPendingResponse().model_dump())
+			return JSONResponse(status_code=202, content=TaskPendingResponse().model_dump())
 
 		if task.status == TaskStatus.COMPLETED:
 			logger.info("task_result", extra={"task_id": task_id})
