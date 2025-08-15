@@ -29,7 +29,7 @@ Open the UI: http://localhost:8000/ui
 ### Demo video
 
 <video controls playsinline width="800">
-  <source src="ClassiqDemoVideo.mp4" type="video/mp4" />
+  <source src="examples/ClassiqDemoVideo.mp4" type="video/mp4" />
 </video>
 
 ### Admin UI
