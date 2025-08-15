@@ -28,7 +28,7 @@ Open the UI: http://localhost:8000/ui
 
 ### Demo video
 
-[Watch the demo video](examples/ClassiqDemoVideo.mp4)
+[Watch the demo video](examples/ClassiqDemoVideo.mov)
 
 
 ### Admin UI
