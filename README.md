@@ -43,6 +43,11 @@ ID=<paste-task-id>
 curl -s http://localhost:8000/tasks/$ID
 ```
 
+## Testing
+
+See the detailed test guide in [tests/README.md](tests/README.md).
+
+
 ## Endpoints
 - POST `/tasks`
   - body: `{ "qc": "<QASM3 string>" }`

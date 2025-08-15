@@ -1,7 +1,7 @@
 from typing import Dict
 
 from qiskit import QuantumCircuit
-from qiskit.qasm3 import loads as qasm3_loads
+from qiskit.qasm3 import loads as qasm3_loads, dumps as qasm3_dumps
 from qiskit_aer import AerSimulator
 
 from .config import settings
@@ -9,6 +9,10 @@ from .config import settings
 
 def circuit_from_qasm3(qasm3_str: str) -> QuantumCircuit:
 	return qasm3_loads(qasm3_str)
+
+
+def circuit_to_qasm3(qc: QuantumCircuit) -> str:
+	return qasm3_dumps(qc)
 
 
 def run_circuit(qc: QuantumCircuit) -> Dict[str, int]:
