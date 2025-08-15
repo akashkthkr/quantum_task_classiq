@@ -1,0 +1,75 @@
+name: Preview (UI)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build & start stack
+        run: |
+          docker compose build
+          docker compose up -d
+
+      - name: Wait for API health
+        run: |
+          for i in {1..90}; do
+            if curl -fsS http://localhost:8000/healthz >/dev/null; then
+              echo "API is healthy"; exit 0;
+            fi
+            sleep 1
+          done
+          echo "API did not become healthy in time" >&2
+          docker compose ps
+          exit 1
+
+      - name: Download cloudflared
+        run: |
+          curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+          chmod +x cloudflared
+
+      - name: Start tunnel
+        run: |
+          ./cloudflared tunnel --url http://localhost:8000 --no-autoupdate > tunnel.log 2>&1 &
+          echo $! > tunnel.pid
+          sleep 5
+          grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' tunnel.log | head -n1 | tee preview-url.txt
+
+      - name: Print preview URL
+        run: |
+          echo "Preview URL: $(cat preview-url.txt)" | tee -a $GITHUB_STEP_SUMMARY
+          echo "Open /ui to use the demo"
+
+      - name: Keep alive (20 minutes)
+        run: sleep 1200
+
+      - name: Collect logs
+        if: always()
+        run: |
+          docker compose ps > compose-ps.txt
+          docker compose logs --no-color > compose-logs.txt || true
+          docker compose logs --no-color api > api.log || true
+          docker compose logs --no-color worker > worker.log || true
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: preview-artifacts
+          path: |
+            preview-url.txt
+            tunnel.log
+            compose-ps.txt
+            compose-logs.txt
+            api.log
+            worker.log
+
+      - name: Down stack
+        if: always()
+        run: docker compose down -v || true
