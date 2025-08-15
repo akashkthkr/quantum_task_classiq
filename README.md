@@ -47,6 +47,7 @@ curl -s http://localhost:8000/tasks/$ID
 
 See the detailed test guide in [tests/README.md](tests/README.md).
 
+You can also review the automated test results for every pull request, as our CI workflow runs the full test suite on each PR. The workflow details and test logs are available directly in the "Actions" tab of the GitHub repository, allowing you to verify that all tests pass before merging any changes.
 
 ## Endpoints
 - POST `/tasks`
