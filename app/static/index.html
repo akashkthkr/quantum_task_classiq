@@ -31,6 +31,7 @@
     .panel { background: linear-gradient(180deg, var(--panel) 0%, rgba(255,255,255,0.01) 100%); border: 1px solid var(--panel-border); border-radius: 16px; padding: 1rem; box-shadow: 0 10px 30px rgba(2,6,23,0.25), inset 0 1px 0 rgba(255,255,255,0.04); }
     textarea { width: 100%; height: 260px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: transparent; color: var(--text); border: 1px solid var(--panel-border); border-radius: 12px; padding: .75rem; }
     pre { background: rgba(255,255,255,0.03); padding: 1rem; overflow: auto; border-radius: 12px; border: 1px solid var(--panel-border); }
+    pre.collapsed { max-height: 240px; }
     input[type="text"] { background: transparent; color: var(--text); border: 1px solid var(--panel-border); border-radius: 12px; padding: .55rem .75rem; outline: none; width: 100%; max-width: 520px; }
 
     .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.6rem 1rem; border-radius: 999px; border: 1px solid var(--panel-border); text-decoration: none; cursor: pointer; transition: transform .04s ease, background .2s ease, box-shadow .2s ease; font-weight: 600; }
@@ -92,9 +93,14 @@
     qasmEl.value = example;
 
     async function submit() {
+      // clear previous outputs for a fresh submission
+      resetCollapsible(resultEl);
       resultEl.textContent = '(none)';
       taskIdEl.textContent = '—';
       statusEl.textContent = 'submitting...';
+      const viz = document.getElementById('viz');
+      viz.style.display = 'none';
+      viz.removeAttribute('src');
       try {
         const res = await fetch('/tasks', {
           method: 'POST',
@@ -123,6 +129,7 @@
       if (data.status === 'completed') {
         statusEl.textContent = 'completed';
         resultEl.textContent = JSON.stringify(data.result, null, 2);
+        ensureCollapsible(resultEl);
         const viz = document.getElementById('viz');
         viz.src = `/tasks/${id}/viz.png`;
         viz.style.display = '';
@@ -130,6 +137,9 @@
       }
       statusEl.textContent = 'error';
       resultEl.textContent = JSON.stringify(data, null, 2);
+      const viz = document.getElementById('viz');
+      viz.style.display = 'none';
+      viz.removeAttribute('src');
     }
 
     btn.addEventListener('click', submit);
@@ -151,11 +161,16 @@
     async function fetchById() {
       const id = (fetchIdEl.value || '').trim();
       if (!id) { fetchResultEl.textContent = 'Please enter a task ID.'; return; }
+      // reset previous fetch output and viz
+      resetCollapsible(fetchResultEl);
       fetchResultEl.textContent = 'loading...';
+      const old = document.getElementById('fetchVizContainer');
+      if (old) old.remove();
       try {
         const res = await fetch(`/tasks/${encodeURIComponent(id)}`);
         const data = await res.json();
         fetchResultEl.textContent = JSON.stringify(data, null, 2);
+        ensureCollapsible(fetchResultEl);
         if (data.status === 'completed') {
           const img = new Image();
           img.src = `/tasks/${id}/viz.png`;
@@ -165,6 +180,7 @@
           img.style.borderRadius = '12px';
           const container = document.createElement('div');
           container.className = 'row';
+          container.id = 'fetchVizContainer';
           container.appendChild(img);
           fetchResultEl.parentElement.insertAdjacentElement('afterend', container);
         }
@@ -173,6 +189,36 @@
       }
     }
     fetchBtn.addEventListener('click', fetchById);
+
+    function ensureCollapsible(preEl) {
+      const text = preEl.textContent || '';
+      const THRESHOLD = 1200;
+      if (text.length <= THRESHOLD) return;
+      if (preEl.dataset.collapsible === '1') return;
+      preEl.dataset.collapsible = '1';
+      preEl.classList.add('collapsed');
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-admin';
+      btn.style.margin = '.5rem 0';
+      btn.textContent = 'Expand';
+      btn.dataset.toggle = 'pre';
+      btn.addEventListener('click', () => {
+        const isCollapsed = preEl.classList.toggle('collapsed');
+        btn.textContent = isCollapsed ? 'Expand' : 'Collapse';
+      });
+      preEl.parentElement.insertBefore(btn, preEl);
+    }
+
+    function resetCollapsible(preEl) {
+      if (preEl.dataset.collapsible === '1') {
+        preEl.classList.remove('collapsed');
+        preEl.dataset.collapsible = '';
+        const prev = preEl.previousElementSibling;
+        if (prev && prev.tagName === 'BUTTON' && prev.dataset && prev.dataset.toggle === 'pre') {
+          prev.remove();
+        }
+      }
+    }
   </script>
 </body>
 </html>
