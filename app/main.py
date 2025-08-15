@@ -1,7 +1,7 @@
 import uuid
 import logging
 from fastapi import FastAPI, HTTPException, Header, Query
-from fastapi.responses import JSONResponse, PlainTextResponse, FileResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 
@@ -16,6 +16,7 @@ from .schemas import (
 )
 from .celery_app import celery
 from .worker_tasks import execute_quantum_task
+from .quantum import circuit_from_qasm3, circuit_to_png_bytes
 
 app = FastAPI(title="Quantum Task API")
 logger = logging.getLogger("api")
@@ -127,5 +128,37 @@ def download_task_qasm3(task_id: str, x_admin_password: str | None = Header(defa
 		return PlainTextResponse(content, media_type="text/plain", headers={
 			"Content-Disposition": f"attachment; filename=\"{filename}\""
 		})
+	finally:
+		session.close()
+
+
+@app.get("/admin/tasks/{task_id}/viz.png")
+def task_viz_png(task_id: str, x_admin_password: str | None = Header(default=None, alias="x-admin-password"), password: str | None = Query(default=None)):
+	secret = x_admin_password or password
+	if secret != "classiq":
+		raise HTTPException(status_code=401, detail="Unauthorized")
+
+	session = SessionLocal()
+	try:
+		task = session.get(Task, task_id)
+		if task is None:
+			raise HTTPException(status_code=404, detail="Task not found")
+		qc = circuit_from_qasm3(task.qc_qasm3)
+		png = circuit_to_png_bytes(qc)
+		return Response(content=png, media_type="image/png")
+	finally:
+		session.close()
+
+
+@app.get("/tasks/{task_id}/viz.png")
+def public_task_viz_png(task_id: str):
+	session = SessionLocal()
+	try:
+		task = session.get(Task, task_id)
+		if task is None:
+			raise HTTPException(status_code=404, detail="Task not found")
+		qc = circuit_from_qasm3(task.qc_qasm3)
+		png = circuit_to_png_bytes(qc)
+		return Response(content=png, media_type="image/png")
 	finally:
 		session.close()

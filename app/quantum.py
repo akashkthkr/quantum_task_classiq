@@ -40,3 +40,40 @@ def run_circuit(qc: QuantumCircuit) -> Dict[str, int]:
     except Exception as e:
         # Bubble up a clear message to your API
         raise RuntimeError(f"Execution error: {e}")
+
+
+def circuit_to_text_diagram(qc: QuantumCircuit) -> str:
+    """Render a simple ASCII diagram for the circuit.
+
+    This avoids heavyweight deps (e.g., Matplotlib) and works in headless envs.
+    """
+    try:
+        drawing = qc.draw(output="text")
+        single = getattr(drawing, "single_string", None)
+        if callable(single):
+            return single()
+        return str(drawing)
+    except Exception as e:
+        raise ValueError(f"Diagram render error: {e}")
+
+
+def circuit_to_png_bytes(qc: QuantumCircuit) -> bytes:
+    """Render the circuit to a PNG image and return its bytes.
+
+    Uses Matplotlib backend in headless mode.
+    """
+    try:
+        import matplotlib
+        matplotlib.use("Agg")  # headless
+        import matplotlib.pyplot as plt
+
+        fig = qc.draw(output="mpl")  # returns a Matplotlib Figure
+        # Save to an in-memory buffer
+        import io
+
+        buf = io.BytesIO()
+        fig.savefig(buf, format="png", bbox_inches="tight", dpi=200)
+        plt.close(fig)
+        return buf.getvalue()
+    except Exception as e:
+        raise ValueError(f"PNG render error: {e}")
