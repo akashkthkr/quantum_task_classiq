@@ -1,7 +1,7 @@
 import uuid
 import logging
 from fastapi import FastAPI, HTTPException, Header, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 
@@ -102,5 +102,25 @@ def list_tasks(x_admin_password: str | None = Header(default=None, alias="x-admi
                 "error_msg": t.error_msg,
             })
         return {"tasks": data}
+    finally:
+        session.close()
+
+
+@app.get("/admin/tasks/{task_id}/qasm3")
+def download_task_qasm3(task_id: str, x_admin_password: str | None = Header(default=None, alias="x-admin-password"), password: str | None = Query(default=None)):
+    secret = x_admin_password or password
+    if secret != "classiq":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    session = SessionLocal()
+    try:
+        task = session.get(Task, task_id)
+        if task is None:
+            raise HTTPException(status_code=404, detail="Task not found")
+        content = task.qc_qasm3 or ""
+        filename = f"{task_id}.qasm"
+        return PlainTextResponse(content, media_type="text/plain", headers={
+            "Content-Disposition": f"attachment; filename=\"{filename}\""
+        })
     finally:
         session.close()

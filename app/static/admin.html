@@ -32,6 +32,7 @@
       tbody.innerHTML = '';
       for (const t of tasks) {
         const tr = document.createElement('tr');
+        const dl = `/admin/tasks/${t.id}/qasm3?password=${encodeURIComponent(currentPassword || '')}`;
         tr.innerHTML = `
           <td>${t.id}</td>
           <td>${t.status}</td>
@@ -39,6 +40,7 @@
           <td>${t.updated_at || ''}</td>
           <td>${t.has_result ? '<span class="ok">yes</span>' : '<span class="muted">no</span>'}</td>
           <td>${t.error_msg ? '<span class="err">' + t.error_msg + '</span>' : ''}</td>
+          <td><a href="${dl}">Download</a></td>
         `;
         tbody.appendChild(tr);
       }
@@ -110,6 +112,7 @@
           <th>Updated</th>
           <th>Has Result</th>
           <th>Error</th>
+          <th>QASM</th>
         </tr>
       </thead>
       <tbody></tbody>
