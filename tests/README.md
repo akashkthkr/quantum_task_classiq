@@ -20,6 +20,9 @@ docker compose exec -T api python -m pytest -q /app/tests/test_qiskit_example.py
 # run QASM3 round-trip test only
 docker compose exec -T api python -m pytest -q /app/tests/test_qasm3_roundtrip.py
 
+
+docker compose exec -T api python -m pytest -q /app/tests/test_heavy_qasm_cases.py | cat
+
 ```
 
 ## Run locally (no Docker)

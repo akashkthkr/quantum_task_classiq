@@ -1,7 +1,7 @@
 import uuid
 import logging
 from fastapi import FastAPI, HTTPException, Header, Query
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
 
@@ -16,6 +16,7 @@ from .schemas import (
 )
 from .celery_app import celery
 from .worker_tasks import execute_quantum_task
+from .quantum import circuit_from_qasm3, circuit_to_png_bytes
 
 app = FastAPI(title="Quantum Task API")
 logger = logging.getLogger("api")
@@ -83,44 +84,81 @@ app.mount("/ui", StaticFiles(directory="app/static", html=True), name="ui")
 
 @app.get("/admin/tasks")
 def list_tasks(x_admin_password: str | None = Header(default=None, alias="x-admin-password"), password: str | None = Query(default=None)):
-    secret = x_admin_password or password
-    if secret != "classiq":
-        raise HTTPException(status_code=401, detail="Unauthorized")
+	secret = x_admin_password or password
+	if secret != "classiq":
+		raise HTTPException(status_code=401, detail="Unauthorized")
 
-    session = SessionLocal()
-    try:
-        stmt = select(Task).order_by(Task.submitted_at.desc())
-        tasks = session.execute(stmt).scalars().all()
-        data = []
-        for t in tasks:
-            data.append({
-                "id": t.id,
-                "status": t.status,
-                "submitted_at": t.submitted_at.isoformat() if t.submitted_at else None,
-                "updated_at": t.updated_at.isoformat() if t.updated_at else None,
-                "has_result": bool(t.result_json),
-                "error_msg": t.error_msg,
-            })
-        return {"tasks": data}
-    finally:
-        session.close()
+	session = SessionLocal()
+	try:
+		stmt = select(Task).order_by(Task.submitted_at.desc())
+		tasks = session.execute(stmt).scalars().all()
+		data = []
+		for t in tasks:
+			data.append({
+				"id": t.id,
+				"status": t.status,
+				"submitted_at": t.submitted_at.isoformat() if t.submitted_at else None,
+				"updated_at": t.updated_at.isoformat() if t.updated_at else None,
+				"has_result": bool(t.result_json),
+				"error_msg": t.error_msg,
+			})
+		return {"tasks": data}
+	finally:
+		session.close()
+
+
+@app.get("/admin", include_in_schema=False)
+def admin_page():
+	return FileResponse("app/static/admin.html", media_type="text/html")
 
 
 @app.get("/admin/tasks/{task_id}/qasm3")
 def download_task_qasm3(task_id: str, x_admin_password: str | None = Header(default=None, alias="x-admin-password"), password: str | None = Query(default=None)):
-    secret = x_admin_password or password
-    if secret != "classiq":
-        raise HTTPException(status_code=401, detail="Unauthorized")
+	secret = x_admin_password or password
+	if secret != "classiq":
+		raise HTTPException(status_code=401, detail="Unauthorized")
 
-    session = SessionLocal()
-    try:
-        task = session.get(Task, task_id)
-        if task is None:
-            raise HTTPException(status_code=404, detail="Task not found")
-        content = task.qc_qasm3 or ""
-        filename = f"{task_id}.qasm"
-        return PlainTextResponse(content, media_type="text/plain", headers={
-            "Content-Disposition": f"attachment; filename=\"{filename}\""
-        })
-    finally:
-        session.close()
+	session = SessionLocal()
+	try:
+		task = session.get(Task, task_id)
+		if task is None:
+			raise HTTPException(status_code=404, detail="Task not found")
+		content = task.qc_qasm3 or ""
+		filename = f"{task_id}.qasm"
+		return PlainTextResponse(content, media_type="text/plain", headers={
+			"Content-Disposition": f"attachment; filename=\"{filename}\""
+		})
+	finally:
+		session.close()
+
+
+@app.get("/admin/tasks/{task_id}/viz.png")
+def task_viz_png(task_id: str, x_admin_password: str | None = Header(default=None, alias="x-admin-password"), password: str | None = Query(default=None)):
+	secret = x_admin_password or password
+	if secret != "classiq":
+		raise HTTPException(status_code=401, detail="Unauthorized")
+
+	session = SessionLocal()
+	try:
+		task = session.get(Task, task_id)
+		if task is None:
+			raise HTTPException(status_code=404, detail="Task not found")
+		qc = circuit_from_qasm3(task.qc_qasm3)
+		png = circuit_to_png_bytes(qc)
+		return Response(content=png, media_type="image/png")
+	finally:
+		session.close()
+
+
+@app.get("/tasks/{task_id}/viz.png")
+def public_task_viz_png(task_id: str):
+	session = SessionLocal()
+	try:
+		task = session.get(Task, task_id)
+		if task is None:
+			raise HTTPException(status_code=404, detail="Task not found")
+		qc = circuit_from_qasm3(task.qc_qasm3)
+		png = circuit_to_png_bytes(qc)
+		return Response(content=png, media_type="image/png")
+	finally:
+		session.close()
