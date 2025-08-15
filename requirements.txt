@@ -10,3 +10,5 @@ python-json-logger==2.0.7
 qiskit==1.2.0
 qiskit-aer==0.14.2
 qiskit-qasm3-import
+pytest==8.2.1
+requests==2.32.3
