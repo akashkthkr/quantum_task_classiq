@@ -26,6 +26,14 @@ curl http://localhost:8000/healthz
 
 Open the UI: http://localhost:8000/ui
 
+### Demo video
+
+<video controls playsinline width="800">
+  <source src="examples/ClassiqDemoVideo.mov" type="video/quicktime" />
+  <a href="examples/ClassiqDemoVideo.mov">Download the demo video</a>
+  (your viewer does not support embedded playback)
+ </video>
+
 ### Admin UI
 
 - I open the admin page at: http://localhost:8000/admin
