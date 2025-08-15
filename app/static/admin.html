@@ -5,15 +5,53 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Admin – Tasks</title>
   <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #0f152b;
+      --panel-border: rgba(255,255,255,0.08);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --ok: #34d399;
+      --err: #f87171;
+      --accent: #8b5cf6;
+      --accent-2: #06b6d4;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f7fafc;
+        --panel: #ffffff;
+        --panel-border: rgba(0,0,0,0.08);
+        --text: #0f172a;
+        --muted: #475569;
+      }
+    }
+    html, body { background: var(--bg); color: var(--text); }
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; }
-    input, button { padding: 0.5rem 0.7rem; font-size: 1rem; }
-    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
-    th, td { border: 1px solid #ddd; padding: 0.5rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-    th { text-align: left; background: #f6f8fa; }
     .row { margin: 0.8rem 0; }
-    .muted { color: #666; }
-    .ok { color: #1a7f37; }
-    .err { color: #b3261e; }
+    .muted { color: var(--muted); }
+    .ok { color: var(--ok); }
+    .err { color: var(--err); }
+
+    .panel { background: linear-gradient(180deg, var(--panel) 0%, rgba(255,255,255,0.01) 100%); border: 1px solid var(--panel-border); border-radius: 16px; padding: 1rem; box-shadow: 0 10px 30px rgba(2,6,23,0.25), inset 0 1px 0 rgba(255,255,255,0.04); }
+    .title { font-weight: 800; letter-spacing: -0.02em; font-size: 1.9rem; margin-bottom: 0.5rem; }
+
+    .btn { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.9rem; border-radius: 999px; border: 1px solid var(--panel-border); text-decoration: none; cursor: pointer; background: #111827; color: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: transform .04s ease, box-shadow .2s ease, background .2s ease; }
+    .btn:hover { box-shadow: 0 8px 26px rgba(139,92,246,0.22); }
+    .btn:active { transform: translateY(1px); }
+    .btn-gradient { background: linear-gradient(135deg, var(--accent), var(--accent-2)); border-color: rgba(139,92,246,0.55); }
+    .btn-ghost { background: transparent; color: var(--text); }
+
+    input { background: transparent; color: var(--text); border: 1px solid var(--panel-border); border-radius: 12px; padding: 0.55rem 0.75rem; outline: none; }
+    input::placeholder { color: var(--muted); }
+
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; overflow: hidden; border-radius: 12px; border: 1px solid var(--panel-border); }
+    thead th { text-align: left; background: rgba(139,92,246,0.08); color: var(--text); }
+    th, td { border-bottom: 1px solid var(--panel-border); padding: 0.65rem 0.7rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    tbody tr:hover { background: rgba(255,255,255,0.03); }
+    a { color: #93c5fd; }
+    .tag { display: inline-block; padding: .1rem .4rem; border-radius: 6px; font-size: .85rem; background: rgba(52,211,153,0.15); color: var(--ok); border: 1px solid rgba(52,211,153,0.35); }
+    .tag-muted { background: rgba(148,163,184,0.12); color: var(--muted); border-color: rgba(148,163,184,0.3); }
+    .detail { background: rgba(255,255,255,0.03); }
   </style>
   <script>
     let currentPassword = null;
@@ -27,6 +65,8 @@
       return res.json();
     }
 
+    const resultsCache = new Map();
+
     function render(tasks) {
       const tbody = document.querySelector('tbody');
       tbody.innerHTML = '';
@@ -38,11 +78,51 @@
           <td>${t.status}</td>
           <td>${t.submitted_at || ''}</td>
           <td>${t.updated_at || ''}</td>
-          <td>${t.has_result ? '<span class="ok">yes</span>' : '<span class="muted">no</span>'}</td>
+          <td>${t.has_result ? '<span class="tag">yes</span>' : '<span class="tag tag-muted">no</span>'}</td>
+          <td>${t.has_result ? `<a href="#" class="view-result" data-task-id="${t.id}">View</a>` : '<span class="muted">—</span>'}</td>
           <td>${t.error_msg ? '<span class="err">' + t.error_msg + '</span>' : ''}</td>
           <td><a href="${dl}">Download</a></td>
         `;
         tbody.appendChild(tr);
+
+        const detail = document.createElement('tr');
+        detail.id = `detail-${t.id}`;
+        detail.className = 'detail';
+        detail.style.display = 'none';
+        detail.innerHTML = `<td colspan="8"><pre id="pre-${t.id}" style="margin:0; white-space:pre-wrap;">(loading...)</pre></td>`;
+        tbody.appendChild(detail);
+      }
+
+      for (const a of tbody.querySelectorAll('.view-result')) {
+        a.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const id = a.dataset.taskId;
+          const row = document.getElementById(`detail-${id}`);
+          const pre = document.getElementById(`pre-${id}`);
+          const isHidden = row.style.display === 'none';
+          if (isHidden) {
+            if (!resultsCache.has(id)) {
+              pre.textContent = '(loading...)';
+              try {
+                const res = await fetch(`/tasks/${id}`);
+                const data = await res.json();
+                if (data.status === 'completed') {
+                  resultsCache.set(id, data.result || {});
+                  pre.textContent = JSON.stringify(data.result || {}, null, 2);
+                } else {
+                  pre.textContent = JSON.stringify(data, null, 2);
+                }
+              } catch (err) {
+                pre.textContent = 'error: ' + err.message;
+              }
+            } else {
+              pre.textContent = JSON.stringify(resultsCache.get(id), null, 2);
+            }
+            row.style.display = '';
+          } else {
+            row.style.display = 'none';
+          }
+        });
       }
     }
 
@@ -90,18 +170,25 @@
   </script>
 </head>
 <body>
-  <h1>Admin – Submitted Tasks</h1>
-  <div class="row"><a href="/ui">Back to UI</a></div>
-  <form id="login" class="row">
-    <label for="pw">Password:</label>
-    <input id="pw" type="password" placeholder="enter password" />
-    <button type="submit">View tasks</button>
-    <span id="status" class="muted"></span>
+  <div class="title">Admin – Submitted Tasks</div>
+  <div class="row"><a class="btn btn-ghost" href="/ui">← Back to UI</a></div>
+  <form id="login" class="panel">
+    <div class="row">
+      <label for="pw" class="muted">Password</label>
+    </div>
+    <div class="row" style="display:flex; gap:.6rem; align-items:center;">
+      <input id="pw" type="password" placeholder="enter password" />
+      <button type="submit" class="btn btn-gradient">View tasks</button>
+      <span id="status" class="muted"></span>
+    </div>
   </form>
 
-  <div id="table" style="display:none">
-    <div class="row">
-      <button id="btnRefresh">Refresh</button>
+  <div id="table" class="panel" style="display:none">
+    <div class="row" style="display:flex; gap:.6rem; align-items:center; justify-content:space-between;">
+      <div class="muted">Tasks</div>
+      <div>
+        <button id="btnRefresh" class="btn btn-gradient">⟲ Refresh</button>
+      </div>
     </div>
     <table>
       <thead>
@@ -111,6 +198,7 @@
           <th>Submitted</th>
           <th>Updated</th>
           <th>Has Result</th>
+          <th>Result</th>
           <th>Error</th>
           <th>QASM</th>
         </tr>
