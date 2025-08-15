@@ -1,4 +1,5 @@
 import uuid
+import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -16,6 +17,7 @@ from .celery_app import celery
 from .worker_tasks import execute_quantum_task
 
 app = FastAPI(title="Quantum Task API")
+logger = logging.getLogger("api")
 
 
 @app.on_event("startup")
@@ -39,6 +41,7 @@ def submit_task(payload: SubmitTaskRequest) -> SubmitTaskResponse:
 		task = Task(id=task_id, status=TaskStatus.PENDING, qc_qasm3=payload.qc)
 		session.add(task)
 		session.commit()
+		logger.info("task_enqueued", extra={"task_id": task_id})
 	finally:
 		session.close()
 
@@ -56,14 +59,18 @@ def get_task(task_id: str):
 	try:
 		task = session.get(Task, task_id)
 		if task is None:
+			logger.info("task_not_found", extra={"task_id": task_id})
 			return JSONResponse(status_code=404, content=TaskErrorResponse(status="error", message="Task not found.").model_dump())
 
 		if task.status in (TaskStatus.PENDING, TaskStatus.RUNNING):
+			logger.info("task_pending", extra={"task_id": task_id, "status": task.status})
 			return JSONResponse(status_code=200, content=TaskPendingResponse().model_dump())
 
 		if task.status == TaskStatus.COMPLETED:
+			logger.info("task_result", extra={"task_id": task_id})
 			return JSONResponse(status_code=200, content=TaskCompletedResponse(result=task.result_json or {}).model_dump())
 
+		logger.info("task_error_state", extra={"task_id": task_id})
 		return JSONResponse(status_code=200, content=TaskErrorResponse(status="error", message=task.error_msg or "Unknown error").model_dump())
 	finally:
 		session.close()
