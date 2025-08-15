@@ -49,8 +49,8 @@ jobs:
             echo "";
             echo "\`$URL\`";
             echo "";
-            echo "- Live UI: [$URL/ui]($URL/ui";
-            echo "- Admin UI: [$URL/ui/admin]($URL/ui/admin (password hint: company name is lower case)";
+            echo "- Live UI: <${URL}/ui>";
+            echo "- Admin UI: <${URL}/admin> (password hint: company name is lower case)";
           } | tee -a $GITHUB_STEP_SUMMARY
 
       - name: Keep alive (20 minutes)
