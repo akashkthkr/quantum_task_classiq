@@ -1,0 +1,88 @@
+name: UI Smoke
+
+on:
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+jobs:
+  ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build & start stack
+        run: |
+          docker compose build
+          docker compose up -d
+
+      - name: Wait for API health
+        run: |
+          for i in {1..90}; do
+            if curl -fsS http://localhost:8000/healthz >/dev/null; then
+              echo "API is healthy"; exit 0;
+            fi
+            sleep 1
+          done
+          echo "API did not become healthy in time" >&2
+          docker compose ps
+          exit 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Playwright
+        run: |
+          npm init -y
+          npm i -D @playwright/test
+          npx playwright install --with-deps
+
+      - name: Create UI smoke test
+        run: |
+          cat > ui.spec.ts <<'TS'
+          import { test, expect } from '@playwright/test';
+          const QASM = `OPENQASM 3.0;
+          include "stdgates.inc";
+          qubit[2] q; bit[2] c; h q[0]; cx q[0], q[1];
+          measure q[0] -> c[0]; measure q[1] -> c[1];`;
+          test('UI submit completes', async ({ page }) => {
+            await page.goto('http://localhost:8000/ui', { waitUntil: 'domcontentloaded' });
+            await page.locator('#qasm').fill(QASM);
+            await page.locator('#submit').click();
+            await expect(page.locator('#status')).toContainText(/queued|pending/i, { timeout: 10000 });
+            await expect(page.locator('#status')).toHaveText(/completed/i, { timeout: 60000 });
+            await page.screenshot({ path: 'ui-completed.png', fullPage: true });
+          });
+          TS
+
+      - name: Run Playwright
+        run: npx playwright test --reporter=line
+
+      - name: Collect docker logs
+        if: always()
+        run: |
+          docker compose ps > compose-ps.txt
+          docker compose logs --no-color > compose-logs.txt || true
+          docker compose logs --no-color api > api.log || true
+          docker compose logs --no-color worker > worker.log || true
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-smoke-artifacts
+          path: |
+            ui-completed.png
+            compose-ps.txt
+            compose-logs.txt
+            api.log
+            worker.log
+
+      - name: Down stack
+        if: always()
+        run: docker compose down -v
