@@ -16,6 +16,7 @@
     .err { color: #b3261e; }
   </style>
   <script>
+    let currentPassword = null;
     async function fetchTasks(password) {
       const res = await fetch('/admin/tasks?password=' + encodeURIComponent(password));
       if (!res.ok) {
@@ -43,17 +44,32 @@
       }
     }
 
+    async function refreshNow() {
+      const status = document.getElementById('status');
+      if (!currentPassword) return;
+      status.textContent = 'refreshing...';
+      try {
+        const data = await fetchTasks(currentPassword);
+        render(data.tasks || []);
+        status.textContent = '';
+      } catch (err) {
+        status.textContent = 'error: ' + err.message;
+      }
+    }
+
     async function onLoad() {
       const form = document.getElementById('login');
       const status = document.getElementById('status');
       const pw = document.getElementById('pw');
       const table = document.getElementById('table');
+      const btnRefresh = document.getElementById('btnRefresh');
 
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
         status.textContent = 'loading...';
         try {
-          const data = await fetchTasks(pw.value);
+          currentPassword = pw.value;
+          const data = await fetchTasks(currentPassword);
           status.textContent = '';
           form.style.display = 'none';
           table.style.display = '';
@@ -61,6 +77,11 @@
         } catch (err) {
           status.textContent = 'error: ' + err.message;
         }
+      });
+
+      btnRefresh.addEventListener('click', (e) => {
+        e.preventDefault();
+        refreshNow();
       });
     }
     window.addEventListener('DOMContentLoaded', onLoad);
@@ -77,6 +98,9 @@
   </form>
 
   <div id="table" style="display:none">
+    <div class="row">
+      <button id="btnRefresh">Refresh</button>
+    </div>
     <table>
       <thead>
         <tr>
