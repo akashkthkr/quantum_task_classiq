@@ -33,7 +33,7 @@ Open the UI: http://localhost:8000/ui
 ### Admin UI
 
 - I open the admin page at: http://localhost:8000/admin
-- Password: `classiq` (or pass via header `x-admin-password: classiq`)
+- Password: defaults to `classiq` but is configurable via the `ADMIN_PASSWORD` environment variable (or pass via header `x-admin-password: <password>`)
 - Features:
   - I can list submitted tasks with status and timestamps
   - I can toggle auto‑refresh (every ~2s) or click manual refresh
@@ -84,6 +84,7 @@ I can spin up a temporary public URL for the API/UI using the GitHub Actions wor
 - POST `/tasks`
   - body: `{ "qc": "<QASM3 string>" }`
   - 202: `{ "task_id": "<uuid>", "message": "Task submitted successfully." }`
+  - 503: `{ "detail": "Task queue unavailable. Please retry later." }` (enqueue failure)
 - GET `/tasks/{id}`
   - completed 200: `{ "status": "completed", "result": {"0": 512, "1": 512} }`
   - pending 202: `{ "status": "pending", "message": "Task is still in progress." }`
@@ -91,7 +92,7 @@ I can spin up a temporary public URL for the API/UI using the GitHub Actions wor
 
 ## Environment
 Defaults are embedded in `docker-compose.yml`. If you need overrides, export env vars before `docker compose up`:
-- `POSTGRES_*`, `REDIS_URL`, `CELERY_*`, `NUM_SHOTS` (default 1024)
+- `POSTGRES_*`, `REDIS_URL`, `CELERY_*`, `NUM_SHOTS` (default 1024), `ADMIN_PASSWORD` (default `classiq`)
 
 ## Local dev without Docker (optional)
 ```bash
