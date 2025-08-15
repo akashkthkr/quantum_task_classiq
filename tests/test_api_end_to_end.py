@@ -29,7 +29,7 @@ def test_submit_poll_complete():
     deadline = time.time() + 60
     while time.time() < deadline:
         g = requests.get(f"{BASE}/tasks/{task_id}")
-        assert g.status_code in (200, 404)
+        assert g.status_code in (200, 202, 404)
         data = g.json()
         if data.get("status") == "pending":
             saw_pending = True

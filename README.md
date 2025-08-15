@@ -144,12 +144,12 @@ The high-level component interactions are shown below. GitHub renders Mermaid di
 
 ```mermaid
 graph LR
-  U["UI / Client"] -->|"POST /tasks"| API[("FastAPI")]
+  U["UI / Client"] -->|"POST /tasks"| API(("FastAPI"))
   U -->|"GET /tasks/{id}"| API
-  API -->|"persist task"| PG[("Postgres")]
-  API -->|"enqueue"| REDIS[("Redis (Celery broker)")]
+  API -->|"persist task"| PG(("Postgres"))
+  API -->|"enqueue"| REDIS(("Redis (Celery broker)"))
   WORKER["Celery Worker"] -->|"consume"| REDIS
-  WORKER -->|"execute with Qiskit Aer"| AER["AerSimulator"]
+  WORKER -->|"execute with Qiskit Aer"| AER(("AerSimulator"))
   WORKER -->|"update result"| PG
   API -->|"read status/result"| PG
 ```
@@ -183,5 +183,9 @@ sequenceDiagram
 
 ## Next steps (roadmap)
 
-- Caching of identical circuits: I can hash the QASM3 payload (e.g., SHA-256) and cache completed results in Postgres or Redis. On submit, I would first look up the hash; if present and still valid, I would return the existing `task_id` or even short‑circuit with a fresh `task_id` that immediately points to the cached result. This avoids re-running identical workloads.
-- User management and data scoping: I can attach an authenticated `user_id` to each task (JWT or session), store it in the `tasks` table, and enforce `GET /tasks/{id}` access only for owners (and optionally admins). I can also add a "list my tasks" endpoint to filter by `user_id`. For sharing, I can keep task‑ID lookups but gate them behind a share token or a flag at submission time.
+- **Structured logging**: adopt `structlog` (or `loguru`) for consistent, machine‑parseable logs across API and worker. Include request IDs, task IDs, and durations. Emit JSON logs in production and readable text locally.
+- **Rate limiting**: add per‑IP and global rate limits on `POST /tasks` to prevent abuse (e.g., `slowapi` for FastAPI or an API gateway like NGINX/Traefik). Consider burst + sustained limits and a circuit breaker if the broker/DB is under pressure.
+- **Explicit Python version pin**: pin a specific Python version in Dockerfiles (e.g., `FROM python:3.12-slim` or `FROM python:3.11-slim`) to align with the tested toolchain (the spec allows 3.9+; choose and keep consistent in CI).
+- **UI is optional**: the PDF implies minimalism. The `/ui` is provided for convenience and demos but is not required for the core exercise. It can be disabled or omitted in production deployments without impacting the API.
+- **Caching of identical circuits**: hash the QASM3 payload (e.g., SHA‑256) and cache completed results in Postgres or Redis. On submit, look up the hash; if present and valid, return the existing `task_id` or immediately point a new `task_id` to the cached result.
+- **User management and data scoping**: attach `user_id` to tasks (JWT or session), enforce ownership on `GET /tasks/{id}`, and optionally add a "list my tasks" endpoint. For sharing, keep task‑ID lookups but gate behind a share token or a submission flag.

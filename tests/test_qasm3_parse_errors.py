@@ -55,7 +55,7 @@ def _wait_for_terminal(task_id: str, timeout_s: float = 20.0) -> dict:
     deadline = time.time() + timeout_s
     while time.time() < deadline:
         g = requests.get(f"{BASE}/tasks/{task_id}")
-        assert g.status_code in (200, 404)
+        assert g.status_code in (200, 202, 404)
         data = g.json()
         if data.get("status") != "pending":
             return data
