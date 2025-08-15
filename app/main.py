@@ -1,8 +1,9 @@
 import uuid
 import logging
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header, Query
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import select
 
 from .config import settings
 from .db import init_db, SessionLocal, Task, TaskStatus
@@ -78,3 +79,28 @@ def get_task(task_id: str):
 
 # Serve the UI at /ui
 app.mount("/ui", StaticFiles(directory="app/static", html=True), name="ui")
+
+
+@app.get("/admin/tasks")
+def list_tasks(x_admin_password: str | None = Header(default=None, alias="x-admin-password"), password: str | None = Query(default=None)):
+    secret = x_admin_password or password
+    if secret != "classiq":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    session = SessionLocal()
+    try:
+        stmt = select(Task).order_by(Task.submitted_at.desc())
+        tasks = session.execute(stmt).scalars().all()
+        data = []
+        for t in tasks:
+            data.append({
+                "id": t.id,
+                "status": t.status,
+                "submitted_at": t.submitted_at.isoformat() if t.submitted_at else None,
+                "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+                "has_result": bool(t.result_json),
+                "error_msg": t.error_msg,
+            })
+        return {"tasks": data}
+    finally:
+        session.close()

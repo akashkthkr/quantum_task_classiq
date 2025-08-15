@@ -1,4 +1,4 @@
-name: Preview (UI)
+name: Live UI Preview
 
 on:
   workflow_dispatch:
@@ -43,8 +43,10 @@ jobs:
 
       - name: Print preview URL
         run: |
-          echo "Preview URL: $(cat preview-url.txt)" | tee -a $GITHUB_STEP_SUMMARY
-          echo "Open /ui to use the demo"
+          URL=$(cat preview-url.txt)
+          echo "Preview URL: $URL" | tee -a $GITHUB_STEP_SUMMARY
+          echo "Live UI: [$URL/ui]($URL/ui)" | tee -a $GITHUB_STEP_SUMMARY
+          echo "Admin UI: [$URL/ui/admin.html]($URL/ui/admin.html) (password: classiq)" | tee -a $GITHUB_STEP_SUMMARY
 
       - name: Keep alive (20 minutes)
         run: sleep 1200
