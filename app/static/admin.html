@@ -75,6 +75,7 @@
       for (const t of tasks) {
         const tr = document.createElement('tr');
         const dl = `/admin/tasks/${t.id}/qasm3?password=${encodeURIComponent(currentPassword || '')}`;
+        const viz = t.status !== 'error' ? ` · <a href="/admin/tasks/${t.id}/viz.png?password=${encodeURIComponent(currentPassword || '')}" target="_blank">Viz</a>` : '';
         tr.innerHTML = `
           <td>${t.id}</td>
           <td>${t.status}</td>
@@ -83,7 +84,7 @@
           <td>${t.has_result ? '<span class="tag">yes</span>' : '<span class="tag tag-muted">no</span>'}</td>
           <td>${t.has_result ? `<a href="#" class="view-result" data-task-id="${t.id}">View</a>` : '<span class="muted">—</span>'}</td>
           <td>${t.error_msg ? '<span class="err">' + t.error_msg + '</span>' : ''}</td>
-          <td><a href="${dl}">Download</a> · <a href="/admin/tasks/${t.id}/viz.png?password=${encodeURIComponent(currentPassword || '')}" target="_blank">Viz</a></td>
+          <td><a href="${dl}">Download</a>${viz}</td>
         `;
         tbody.appendChild(tr);
 
