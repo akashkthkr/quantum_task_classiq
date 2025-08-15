@@ -175,3 +175,8 @@ sequenceDiagram
   W->>DB: UPDATE status=running
   W->>DB: UPDATE result/status=completed (or error)
 ```
+
+## Next steps (roadmap)
+
+- Caching of identical circuits: I can hash the QASM3 payload (e.g., SHA-256) and cache completed results in Postgres or Redis. On submit, I would first look up the hash; if present and still valid, I would return the existing `task_id` or even short‑circuit with a fresh `task_id` that immediately points to the cached result. This avoids re-running identical workloads.
+- User management and data scoping: I can attach an authenticated `user_id` to each task (JWT or session), store it in the `tasks` table, and enforce `GET /tasks/{id}` access only for owners (and optionally admins). I can also add a "list my tasks" endpoint to filter by `user_id`. For sharing, I can keep task‑ID lookups but gate them behind a share token or a flag at submission time.
