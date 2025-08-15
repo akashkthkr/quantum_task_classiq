@@ -44,9 +44,14 @@ jobs:
       - name: Print preview URL
         run: |
           URL=$(cat preview-url.txt)
-          echo "Preview URL: $URL" | tee -a $GITHUB_STEP_SUMMARY
-          echo "Live UI: [$URL/ui]($URL/ui)" | tee -a $GITHUB_STEP_SUMMARY
-          echo "Admin UI: [$URL/ui/admin.html]($URL/ui/admin.html) (password: classiq)" | tee -a $GITHUB_STEP_SUMMARY
+          {
+            echo "Preview URL:";
+            echo "";
+            echo "\`$URL\`";
+            echo "";
+            echo "- Live UI: [$URL/ui]($URL/ui)";
+            echo "- Admin UI: [$URL/ui/admin]($URL/ui/admin) (password hint: company name is lower case)";
+          } | tee -a $GITHUB_STEP_SUMMARY
 
       - name: Keep alive (20 minutes)
         run: sleep 1200

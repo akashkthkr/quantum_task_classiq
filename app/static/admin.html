@@ -55,6 +55,8 @@
   </style>
   <script>
     let currentPassword = null;
+    let autoTimer = null;
+    const AUTO_INTERVAL_MS = 2000;
     async function fetchTasks(password) {
       const res = await fetch('/admin/tasks?password=' + encodeURIComponent(password));
       if (!res.ok) {
@@ -139,12 +141,25 @@
       }
     }
 
+    function startAuto() {
+      if (autoTimer) return;
+      autoTimer = setInterval(refreshNow, AUTO_INTERVAL_MS);
+    }
+
+    function stopAuto() {
+      if (autoTimer) {
+        clearInterval(autoTimer);
+        autoTimer = null;
+      }
+    }
+
     async function onLoad() {
       const form = document.getElementById('login');
       const status = document.getElementById('status');
       const pw = document.getElementById('pw');
       const table = document.getElementById('table');
       const btnRefresh = document.getElementById('btnRefresh');
+      const autoChk = document.getElementById('autoRefresh');
 
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -156,6 +171,7 @@
           form.style.display = 'none';
           table.style.display = '';
           render(data.tasks || []);
+          if (autoChk.checked) startAuto();
         } catch (err) {
           status.textContent = 'error: ' + err.message;
         }
@@ -164,6 +180,19 @@
       btnRefresh.addEventListener('click', (e) => {
         e.preventDefault();
         refreshNow();
+      });
+
+      autoChk.addEventListener('change', () => {
+        if (autoChk.checked) startAuto(); else stopAuto();
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          stopAuto();
+        } else if (currentPassword && autoChk.checked) {
+          startAuto();
+          refreshNow();
+        }
       });
     }
     window.addEventListener('DOMContentLoaded', onLoad);
@@ -188,6 +217,9 @@
       <div class="muted">Tasks</div>
       <div>
         <button id="btnRefresh" class="btn btn-gradient">⟲ Refresh</button>
+        <label class="muted" style="margin-left:.6rem;">
+          <input id="autoRefresh" type="checkbox" checked /> Auto-refresh
+        </label>
       </div>
     </div>
     <table>

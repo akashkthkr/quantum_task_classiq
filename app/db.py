@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import create_engine, Enum as SAEnum, Text, JSON
+from sqlalchemy import create_engine, Enum as SAEnum, Text, JSON, Index
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 
 from .config import settings
@@ -37,6 +37,10 @@ class Task(Base):
 	qc_qasm3: Mapped[str] = mapped_column(Text)
 	result_json: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 	error_msg: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+	__table_args__ = (
+		Index("idx_tasks_status_submitted", "status", "submitted_at"),
+	)
 
 
 engine = create_engine(settings.sqlalchemy_url, pool_pre_ping=True)
