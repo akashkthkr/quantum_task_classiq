@@ -26,9 +26,28 @@ curl http://localhost:8000/healthz
 
 Open the UI: http://localhost:8000/ui
 
+### Admin UI
+
+- I open the admin page at: http://localhost:8000/admin
+- Password: `classiq` (or pass via header `x-admin-password: classiq`)
+- Features:
+  - I can list submitted tasks with status and timestamps
+  - I can toggle auto‑refresh (every ~2s) or click manual refresh
+  - I can view JSON result inline for completed tasks
+  - I can download submitted QASM (`.qasm`)
+  - I can open a circuit visualization (PNG) for non‑error tasks
+
+Admin API (JSON):
+
+```bash
+curl -s "http://localhost:8000/admin/tasks?password=classiq" | jq
+# Download QASM for a task
+curl -s -H 'x-admin-password: classiq' -OJ http://localhost:8000/admin/tasks/<TASK_ID>/qasm3
+```
+
 ## Submit the example circuit (CLI)
 
-We ship an example QASM3 at `examples/basic.qasm3`.
+I ship an example QASM3 at `examples/basic.qasm3`.
 
 ```bash
 QASM=$(tr -d '\n' < examples/basic.qasm3 | sed 's/"/\\"/g')
@@ -47,11 +66,11 @@ curl -s http://localhost:8000/tasks/$ID
 
 See the detailed test guide in [tests/README.md](tests/README.md).
 
-You can also review the automated test results for every pull request, as our CI workflow runs the full test suite on each PR. The workflow details and test logs are available directly in the "Actions" tab of the GitHub repository, allowing you to verify that all tests pass before merging any changes.
+I also run the full test suite on each PR in CI. You can view the job logs in the "Actions" tab to make sure everything is green before merging.
 
 ### Live preview (temporary URL)
 
-You can spin up a temporary public URL for the API/UI using the GitHub Actions workflow:
+I can spin up a temporary public URL for the API/UI using the GitHub Actions workflow:
 
 - Go to GitHub → Actions → run the manual workflow named "Live UI Preview".
 - It builds the stack and starts a Cloudflare tunnel. The job summary prints a "Preview URL" plus handy links to `/ui` and the Admin UI.
@@ -101,14 +120,14 @@ MIT (exercise code).
 
 Flow: API → DB → Celery/Redis → Worker → DB → API/UI
 
-- The API persists a new `Task` row in Postgres (status `pending`) before enqueueing the job to Celery (Redis broker). This guarantees task integrity: if the broker is unavailable, the DB row still exists and the API returns an error instead of silently dropping the task.
-- A Celery worker consumes messages, loads the QASM3 circuit, and runs it on `AerSimulator`. Results (or errors) are written back to the same `Task` row. The worker uses `task_acks_late=True` and `worker_prefetch_multiplier=1` to avoid losing in-flight tasks if a worker crashes.
+- I persist a new `Task` row in Postgres (status `pending`) before enqueueing the job to Celery (Redis broker). This guarantees task integrity: if the broker is unavailable, the DB row still exists and the API returns an error instead of silently dropping the task.
+- A Celery worker consumes messages, loads the QASM3 circuit, and runs it on `AerSimulator`. Results (or errors) are written back to the same `Task` row. I configure `task_acks_late=True` and `worker_prefetch_multiplier=1` to avoid losing in-flight tasks if a worker crashes.
 - The GET endpoint reads the task state from Postgres and returns:
   - 200 for `completed` (with result),
   - 202 for `pending`/`running`,
   - 404 for not found,
   - 200 with `{status:"error"}` for tasks in an error state (with message).
-- Docker Compose orchestrates Postgres, Redis, the API container and the worker container. All components are reproducible and isolated.
+- Docker Compose orchestrates Postgres, Redis, the API container and the worker container, so everything is reproducible and isolated.
 
 Indexes
 
