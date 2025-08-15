@@ -28,8 +28,9 @@ Open the UI: http://localhost:8000/ui
 
 ### Demo video
 
-[Watch the demo video](examples/ClassiqDemoVideo.mov)
-
+<video controls playsinline width="800">
+  <source src="ClassiqDemoVideo.mp4" type="video/mp4" />
+</video>
 
 ### Admin UI
 
