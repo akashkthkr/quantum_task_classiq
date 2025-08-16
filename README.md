@@ -26,6 +26,20 @@ curl http://localhost:8000/healthz
 
 Open the UI: http://localhost:8000/ui
 
+### Parallel processing (scale workers)
+
+Run multiple Celery workers in parallel:
+
+```bash
+docker compose up --scale worker=3
+```
+
+If the stack is already running, scale live:
+
+```bash
+docker compose up -d --scale worker=3
+```
+
 ### Demo video
 
 [Watch the demo video](https://akashkthkr.github.io/quantum_task_classiq/ClassiqDemoVideo.mp4)
@@ -160,9 +174,9 @@ And the submit/poll sequence:
 sequenceDiagram
   participant C as Client
   participant A as API
-  participant DB as Postgres
   participant R as Redis (broker)
   participant W as Celery Worker
+  participant DB as DB Postgres
   C->>A: POST /tasks { qc }
   A->>DB: INSERT task (pending)
   A->>R: Enqueue task_id
@@ -178,6 +192,7 @@ sequenceDiagram
   end
   W->>R: Consume message
   W->>DB: UPDATE status=running
+  Note over W: Quantum processing\n(Qiskit Aer)
   W->>DB: UPDATE result/status=completed (or error)
 ```
 
