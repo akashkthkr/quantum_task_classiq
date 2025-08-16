@@ -16,6 +16,9 @@ class Settings(BaseModel):
 	num_shots: int = int(os.getenv("NUM_SHOTS", "1024"))
 	log_level: str = os.getenv("LOG_LEVEL", "INFO")
 
+	# Admin
+	admin_password: str = os.getenv("ADMIN_PASSWORD", "classiq")
+
 	@property
 	def sqlalchemy_url(self) -> str:
 		return (

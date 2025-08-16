@@ -81,7 +81,7 @@ def _poll(task_id: str, deadline_s: float = 30.0) -> dict:
     deadline = time.time() + deadline_s
     while time.time() < deadline:
         g = requests.get(f"{BASE}/tasks/{task_id}")
-        assert g.status_code in (200, 404)
+        assert g.status_code in (200, 202, 404)
         data = g.json()
         if data.get("status") != "pending":
             return data

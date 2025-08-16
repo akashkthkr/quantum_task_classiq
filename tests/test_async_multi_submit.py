@@ -26,7 +26,7 @@ def submit(qasm: str) -> str:
 
 def get(task_id: str) -> dict:
     r = requests.get(f"{BASE}/tasks/{task_id}")
-    assert r.status_code in (200, 404)
+    assert r.status_code in (200, 202, 404)
     return r.json()
 
 

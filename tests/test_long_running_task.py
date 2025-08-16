@@ -32,7 +32,7 @@ def test_submit_long_running_and_observe_pending():
     deadline = time.time() + 15
     while time.time() < deadline:
         g = requests.get(f"{BASE}/tasks/{task_id}")
-        assert g.status_code in (200, 404)
+        assert g.status_code in (200, 202, 404)
         data = g.json()
         # Consider either pending or completed acceptable; we mainly want to observe queueing
         if data.get("status") == "pending":

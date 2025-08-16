@@ -47,7 +47,21 @@ def submit_task(payload: SubmitTaskRequest) -> SubmitTaskResponse:
 	finally:
 		session.close()
 
-	execute_quantum_task.delay(task_id)
+	try:
+		execute_quantum_task.delay(task_id)
+	except Exception as exc: 
+		# Mark task as error if broker is unavailable or enqueue fails
+		session = SessionLocal()
+		try:
+			task = session.get(Task, task_id)
+			if task is not None:
+				task.status = TaskStatus.ERROR
+				task.error_msg = f"Enqueue failed: {exc}"
+				session.commit()
+		finally:
+			session.close()
+		raise HTTPException(status_code=503, detail="Task queue unavailable. Please retry later.")
+
 	return SubmitTaskResponse(task_id=task_id)
 
 
@@ -83,9 +97,10 @@ app.mount("/ui", StaticFiles(directory="app/static", html=True), name="ui")
 
 
 @app.get("/admin/tasks")
+
 def list_tasks(x_admin_password: str | None = Header(default=None, alias="x-admin-password"), password: str | None = Query(default=None)):
 	secret = x_admin_password or password
-	if secret != "classiq":
+	if secret != settings.admin_password:
 		raise HTTPException(status_code=401, detail="Unauthorized")
 
 	session = SessionLocal()
@@ -115,7 +130,7 @@ def admin_page():
 @app.get("/admin/tasks/{task_id}/qasm3")
 def download_task_qasm3(task_id: str, x_admin_password: str | None = Header(default=None, alias="x-admin-password"), password: str | None = Query(default=None)):
 	secret = x_admin_password or password
-	if secret != "classiq":
+	if secret != settings.admin_password:
 		raise HTTPException(status_code=401, detail="Unauthorized")
 
 	session = SessionLocal()
@@ -135,7 +150,7 @@ def download_task_qasm3(task_id: str, x_admin_password: str | None = Header(defa
 @app.get("/admin/tasks/{task_id}/viz.png")
 def task_viz_png(task_id: str, x_admin_password: str | None = Header(default=None, alias="x-admin-password"), password: str | None = Query(default=None)):
 	secret = x_admin_password or password
-	if secret != "classiq":
+	if secret != settings.admin_password:
 		raise HTTPException(status_code=401, detail="Unauthorized")
 
 	session = SessionLocal()
