@@ -68,6 +68,7 @@
     }
 
     const resultsCache = new Map();
+    const expandedRows = new Set(); // remember which rows are expanded across refreshes
 
     function render(tasks) {
       const tbody = document.querySelector('tbody');
@@ -94,6 +95,15 @@
         detail.style.display = 'none';
         detail.innerHTML = `<td colspan="8"><pre id="pre-${t.id}" style="margin:0; white-space:pre-wrap;">(loading...)</pre></td>`;
         tbody.appendChild(detail);
+
+        // Restore expanded state after refresh without collapsing the view
+        if (expandedRows.has(t.id)) {
+          const pre = document.getElementById(`pre-${t.id}`);
+          if (resultsCache.has(t.id)) {
+            pre.textContent = JSON.stringify(resultsCache.get(t.id), null, 2);
+          }
+          detail.style.display = '';
+        }
       }
 
       for (const a of tbody.querySelectorAll('.view-result')) {
@@ -122,8 +132,10 @@
               pre.textContent = JSON.stringify(resultsCache.get(id), null, 2);
             }
             row.style.display = '';
+            expandedRows.add(id);
           } else {
             row.style.display = 'none';
+            expandedRows.delete(id);
           }
         });
       }
