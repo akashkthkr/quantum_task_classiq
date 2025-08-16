@@ -162,9 +162,20 @@ graph LR
   U -->|"GET /tasks/{id}"| API
   API -->|"persist task"| PG(("Postgres"))
   API -->|"enqueue"| REDIS(("Redis (Celery broker)"))
-  WORKER["Celery Worker"] -->|"consume"| REDIS
-  WORKER -->|"execute with Qiskit Aer"| AER(("AerSimulator"))
-  WORKER -->|"update result"| PG
+  subgraph WORKERS["Celery Workers (scaled)"]
+    W1["Worker 1"]
+    W2["Worker 2"]
+    WN["Worker N"]
+  end
+  W1 -->|"consume"| REDIS
+  W2 -->|"consume"| REDIS
+  WN -->|"consume"| REDIS
+  W1 -->|"execute with Qiskit Aer"| AER(("AerSimulator"))
+  W2 -->|"execute with Qiskit Aer"| AER
+  WN -->|"execute with Qiskit Aer"| AER
+  W1 -->|"update result"| PG
+  W2 -->|"update result"| PG
+  WN -->|"update result"| PG
   API -->|"read status/result"| PG
 ```
 
