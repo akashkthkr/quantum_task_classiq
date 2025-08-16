@@ -1,9 +1,10 @@
 import uuid
 import logging
-from fastapi import FastAPI, HTTPException, Header, Query
+from fastapi import FastAPI, HTTPException, Header, Query, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 
 from .config import settings
 from .db import init_db, SessionLocal, Task, TaskStatus
@@ -24,12 +25,27 @@ logger = logging.getLogger("api")
 
 @app.on_event("startup")
 def on_startup() -> None:
-	init_db()
+	try:
+		init_db()
+	except SQLAlchemyError:
+		logger.exception("init_db_failed")
 
 
 @app.get("/healthz")
 def healthz() -> dict:
 	return {"status": "ok"}
+
+
+@app.exception_handler(SQLAlchemyError)
+def sqlalchemy_error_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
+	logger.exception("sqlalchemy_error")
+	return JSONResponse(status_code=503, content={"detail": "Database unavailable. Please retry later."})
+
+
+@app.exception_handler(Exception)
+def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
+	logger.exception("unhandled_exception")
+	return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 
 @app.post("/tasks", response_model=SubmitTaskResponse, status_code=202)
@@ -44,6 +60,14 @@ def submit_task(payload: SubmitTaskRequest) -> SubmitTaskResponse:
 		session.add(task)
 		session.commit()
 		logger.info("task_enqueued", extra={"task_id": task_id})
+	except SQLAlchemyError:
+		# If commit failed due to DB outage, rollback might also fail — ignore it
+		try:
+			session.rollback()
+		except Exception:  # noqa: BLE001
+			pass
+		logger.exception("db_unavailable_on_submit", extra={"task_id": task_id})
+		raise HTTPException(status_code=503, detail="Database unavailable. Please retry later.")
 	finally:
 		session.close()
 
