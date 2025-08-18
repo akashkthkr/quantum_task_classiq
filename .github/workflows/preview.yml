@@ -36,14 +36,30 @@ jobs:
 
       - name: Start tunnel
         run: |
-          ./cloudflared tunnel --url http://localhost:8000 --no-autoupdate > tunnel.log 2>&1 &
+          ./cloudflared tunnel --url http://localhost:8000 --no-autoupdate --loglevel info > tunnel.log 2>&1 &
           echo $! > tunnel.pid
-          sleep 5
-          grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' tunnel.log | head -n1 | tee preview-url.txt
+
+      - name: Wait for tunnel URL
+        id: tunnel
+        run: |
+          for i in {1..60}; do
+            URL=$(grep -Eo 'https://[A-Za-z0-9.-]+\.trycloudflare\.com' tunnel.log | head -n1 || true)
+            if [ -n "$URL" ]; then
+              echo "$URL" | tee preview-url.txt
+              echo "url=$URL" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Failed to detect tunnel URL" >&2
+          echo "--- tunnel.log (tail) ---"
+          tail -n 200 tunnel.log || true
+          exit 1
 
       - name: Print preview URL
+        if: steps.tunnel.outputs.url != ''
         run: |
-          URL=$(cat preview-url.txt)
+          URL='${{ steps.tunnel.outputs.url }}'
           {
             echo "Preview URL:";
             echo "";
